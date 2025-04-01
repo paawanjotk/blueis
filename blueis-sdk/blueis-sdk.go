@@ -5,86 +5,78 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"time"
 )
 
-// RedisClient represents a Redis connection instance
-type RedisClient struct {
-	conn net.Conn
+type CacheClient struct {
+	hostname string
+	port     string
 }
 
-// Connect initializes a Redis connection
-func Connect(address string) (*RedisClient, error) {
-	conn, err := net.DialTimeout("tcp", address, 5*time.Second)
+func NewCacheClient(hostname string) *CacheClient {
+	return &CacheClient{
+		hostname: hostname,
+		port:     "7171",
+	}
+}
+
+func (c *CacheClient) sendCommand(command string) (string, error) {
+	conn, err := net.Dial("tcp", c.hostname+":"+c.port)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Redis server: %v", err)
+		return "", err
 	}
+	defer conn.Close()
 
-	return &RedisClient{conn: conn}, nil
-}
-
-// Close closes the Redis connection
-func (r *RedisClient) Close() {
-	if r.conn != nil {
-		r.conn.Close()
-	}
-}
-
-// sendCommand sends a command to the Redis server in RESP format
-func (r *RedisClient) sendCommand(command []string) (string, error) {
-	// Build RESP message
-	message := fmt.Sprintf("*%d\r\n", len(command))
-	for _, part := range command {
-		message += fmt.Sprintf("$%d\r\n%s\r\n", len(part), part)
-	}
-
-	// Send the command
-	_, err := r.conn.Write([]byte(message))
+	_, err = conn.Write([]byte(command))
 	if err != nil {
-		return "", fmt.Errorf("failed to send command: %v", err)
+		return "", err
 	}
 
-	// Read the server response
-	resp, err := bufio.NewReader(r.conn).ReadString('\n')
+	reader := bufio.NewReader(conn)
+	response, err := reader.ReadString('\n')
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %v", err)
+		return "", err
 	}
 
-	return strings.TrimSpace(resp), nil
+	return strings.TrimSpace(response), nil
 }
 
-// Set stores a key-value pair in Redis
-func (r *RedisClient) Set(key, value string) (string, error) {
-	return r.sendCommand([]string{"SET", key, value})
+func (c *CacheClient) Put(key, value string) bool {
+	command := fmt.Sprintf("*3\r\n$3\r\nSET\r\n$%d\r\n%s\r\n$%d\r\n%s\r\n", len(key), key, len(value), value)
+	response, err := c.sendCommand(command)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return false
+	}
+	return response == "+OK"
 }
 
-// Get retrieves the value of a key from Redis
-func (r *RedisClient) Get(key string) (string, error) {
-	return r.sendCommand([]string{"GET", key})
+func (c *CacheClient) Get(key string) (string, error) {
+	command := fmt.Sprintf("*2\r\n$3\r\nGET\r\n$%d\r\n%s\r\n", len(key), key)
+	response, err := c.sendCommand(command)
+	if err != nil {
+		return "", err
+	}
+
+	if strings.HasPrefix(response, "$-1") { // Redis-style nil response
+		return "", nil
+	}
+
+	return response, nil
 }
 
-// Example usage of the Redis SDK
 func main() {
-	client, err := Connect("localhost:7171")
-	if err != nil {
-		fmt.Println("Failed to connect:", err)
-		return
-	}
-	defer client.Close()
+	client := NewCacheClient("localhost")
 
-	// Set a value
-	res, err := client.Set("name", "Paawanjot")
-	if err != nil {
-		fmt.Println("SET failed:", err)
-		return
+	if client.Put("test_key", "test_value") {
+		fmt.Println("Value stored successfully!")
+	} else {
+		fmt.Println("Failed to store value.")
 	}
-	fmt.Println("SET Response:", res)
 
-	// Get the value
-	val, err := client.Get("name")
+	value, err := client.Get("test_key")
 	if err != nil {
-		fmt.Println("GET failed:", err)
-		return
+		fmt.Println("Error retrieving value:", err)
+	} else {
+		fmt.Println("Retrieved value:", value)
 	}
-	fmt.Println("GET Response:", val)
 }
