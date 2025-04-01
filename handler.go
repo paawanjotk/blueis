@@ -1,6 +1,14 @@
 package main
 
-var Handlers = map[string]func([]Value) Value
+import (
+	"fmt"
+	"sync"
+)
+var Handlers = map[string]func([]Value) Value{
+	"PING" : ping,
+	"SET":  set,
+	"GET":  get,
+}
 
 func ping(args []Value) Value {
 	if len(args) == 0 {
@@ -10,11 +18,6 @@ func ping(args []Value) Value {
 	return Value{typ: "string", str: args[0].bulk}
 }
 
-var Handlers = map[string]func([]Value) Value{
-	"PING" : ping,
-	"SET":  set,
-	"GET":  get,
-}
 
 var SETs = map[string]string{}
 var SETsMu = sync.RWMutex{}
@@ -48,7 +51,7 @@ func get(args []Value) Value {
 	if !ok {
 		return Value{typ: "null"}
 	}
-
+	fmt.Println("GET", key, value)
 	return Value{typ: "bulk", bulk: value}
 }
 

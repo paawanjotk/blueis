@@ -1,5 +1,11 @@
+package main
+
 import (
+	"bufio"
+	"io"
 	"os"
+	"sync"
+	"time"
 )
 
 type Aof struct {

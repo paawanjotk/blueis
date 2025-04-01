@@ -27,7 +27,7 @@ type Resp struct {
 	reader *bufio.Reader
 }
 
-func NewResp(rd io.reader) *Resp {
+func NewResp(rd io.Reader) *Resp {
 	return &Resp{reader: bufio.NewReader(rd)}
 }
 
@@ -73,19 +73,20 @@ func (r *Resp) Read() (Value, error) {
 	default:
 		fmt.Printf("Unknown type: %v", string(_type))
 		return Value{}, nil
+	}
 }
 
 func (r *Resp) readArray() (Value, error) {
-	v: Value{}
+	v := Value{}
 	v.typ = "array"
 
 	length, _, err := r.readInteger()
 	if err != nil {
-		return v, error
+		return v, err
 	}
 
 	v.array = make([]Value, length)
-	for i := 0, i<length; i++ {
+	for i := 0; i<length; i++ {
 		val, err := r.Read()
 		if err != nil {
 			return v, err

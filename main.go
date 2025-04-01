@@ -3,15 +3,14 @@ package main
 import (
     "fmt"
     "net"
-    "os"
-    "io"
+    "strings"
 )
 
 func main() {
-	fmt.Println("Listening on port :6379")
+	fmt.Println("Listening on port :7171")
 
 	// Create a new server
-	l, err := net.Listen("tcp", ":6379")
+	l, err := net.Listen("tcp", ":7171")
 	if err != nil {
 		fmt.Println(err)
 		return
