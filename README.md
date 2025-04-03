@@ -47,7 +47,7 @@ blueis/
 
 2. Run the Docker container:
    ```bash
-   docker run -p 7171:7171 blueis
+   docker pull pjk010/blueis:latest
    ```
 
 ## Usage
